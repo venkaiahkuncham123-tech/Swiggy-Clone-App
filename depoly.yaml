@@ -1,24 +1,24 @@
 apiVersion: v1 
 kind: Namespace 
 metadata:
-  name: Swiggy
+  name: swiggy
 ---
 apiVersion: v1 
 kind: Secret 
 metadata:
   name: db-secret
-  namespace: Swiggy
+  namespace: swiggy
 type: Opaque
 data:
   MYSQL_ROOT_PASSWORD: eXVrdGhh
-  MYSQL_USER: eXVrdGhh
-  MYSQL_PASSWORD: eXVrdGhh
+  MYSQL_USER: dmVua3k=
+  MYSQL_PASSWORD: dmVua3k=
 ---
 apiVersion: v1 
 kind: ConfigMap 
 metadata: 
   name: db-config 
-  namespace: Swiggy
+  namespace: swiggy
 data: 
   DB_HOST: "swiggy-db-svc"
   DB_PORT: "3306"
@@ -28,7 +28,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: db-pvc
-  namespace: Swiggy
+  namespace: swiggy
 spec:
   storageClassName: gp3
   accessModes:
@@ -38,10 +38,10 @@ spec:
       storage: 1Gi
 ---
 apiVersion: apps/v1
-kind: Statefulset
+kind: StatefulSet
 metadata:
   name: swiggy-db
-  namespace: Swiggy
+  namespace: swiggy
 spec:
   replicas: 2
   updateStrategy:
@@ -57,7 +57,7 @@ spec:
     spec:
       containers:
         - name: swiggy-container
-          image: mysql
+          image: mysql:8.0
           ports:
             - containerPort: 3306
               name: sql-port
@@ -76,25 +76,14 @@ spec:
                   key: MYSQL_USER
             - name: MYSQL_PASSWORD
               valueFrom:
-                name: db-secret
-                key: MYSQL_PASSWORD
+                 secretKeyRef:
+                   name: db-secret
+                   key: MYSQL_PASSWORD
             - name: MYSQL_DATABASE
               valueFrom:
                 configMapKeyRef:
                   name: db-config
                   key: DB_NAME
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 3306
-            failureThreShold: 3
-            intialDelaySeconds: 100
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 3306
-            failureThreShold: 3
-            intialDelaySeconds: 100
           volumeMounts:
             - name: pvc 
               mountPath: /swiggy/data
@@ -108,12 +97,12 @@ apiVersion: v1
 kind: Service 
 metadata: 
   name: swiggy-db-svc
-  namespace: Swiggy
+  namespace: swiggy
 spec:
   clusterIP: None
   ports:
     - name: sql
-      ports: 3306
+      port: 3306
       targetPort: sql-port
       protocol: TCP
   selector:
@@ -123,7 +112,7 @@ apiVersion: apps/v1
 kind: Deployment 
 metadata:
   name: swiggy-deployy
-  namespace: Swiggy
+  namespace: swiggy
 spec:
   replicas: 2
   strategy:
@@ -138,7 +127,7 @@ spec:
     spec:
       containers:
         - name: swiggy
-          image: venkaiahk/swiggy:v1
+          image: venkaiahk/swiggy:v3
           ports:
             - containerPort: 5603
           resources:
@@ -161,8 +150,9 @@ spec:
                   key: MYSQL_PASSWORD
             - name: DB_HOST
               valueFrom:
-                name: db-config
-                key: DB_HOST
+                configMapKeyRef:
+                  name: db-config
+                  key: DB_HOST
             - name: DB_PORT
               valueFrom:
                 configMapKeyRef:
@@ -171,13 +161,14 @@ spec:
             - name: DB_NAME
               valueFrom:
                 configMapKeyRef:
-                  name: DB_NAME
+                  name: db-config
+                  key: DB_NAME
 ---
 apiVersion: v1 
 kind: Service 
 metadata:
   name: app-svc
-  namespace: Swiggy
+  namespace: swiggy
 spec:
   selector: 
     app: swiggy
